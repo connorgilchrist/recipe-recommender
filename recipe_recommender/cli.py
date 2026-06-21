@@ -9,7 +9,7 @@ from rich.text import Text
 
 from recipe_recommender.config import DEFAULT_MODEL, DEFAULT_RECIPE_COUNT, MAX_RECIPE_COUNT
 from recipe_recommender.models import Recipe, RecipeRequest
-from recipe_recommender.recommend import build_agent, recommend_recipes
+from recipe_recommender.recommend import recommend_recipes
 
 console = Console()
 
@@ -82,12 +82,10 @@ def recommend(
         count=count,
     )
 
-    agent = build_agent(model)
-
     console.print(f"\n[bold]Finding {count} recipe(s) using {model}…[/bold]\n")
 
     try:
-        recommendations = asyncio.run(recommend_recipes(request, agent))
+        recommendations = asyncio.run(recommend_recipes(request, model))
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
 

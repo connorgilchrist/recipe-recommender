@@ -1,14 +1,11 @@
 """Core recommendation logic — prompt construction and LLM interaction."""
 
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from openai import AsyncOpenAI
 
 from recipe_recommender.config import (
     DEFAULT_MODEL,
     OLLAMA_API_KEY,
     OLLAMA_BASE_URL,
-    OUTPUT_RETRIES,
     SYSTEM_PROMPT,
 )
 from recipe_recommender.models import RecipeRecommendations, RecipeRequest
@@ -34,25 +31,34 @@ def build_user_prompt(request: RecipeRequest) -> str:
     return " ".join(parts)
 
 
-def build_agent(model_name: str = DEFAULT_MODEL) -> Agent[None, RecipeRecommendations]:
-    """Create a Pydantic AI agent configured for Ollama."""
-    model = OpenAIModel(
-        model_name,
-        provider=OpenAIProvider(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY),
-    )
-    return Agent(
-        model,
-        output_type=RecipeRecommendations,
-        system_prompt=SYSTEM_PROMPT,
-        retries=OUTPUT_RETRIES,
-    )
-
-
 async def recommend_recipes(
     request: RecipeRequest,
-    agent: Agent[None, RecipeRecommendations],
+    model_name: str = DEFAULT_MODEL,
 ) -> RecipeRecommendations:
-    """Run the agent and return validated recipe recommendations."""
-    prompt = build_user_prompt(request)
-    result = await agent.run(prompt)
-    return result.output
+    """Call Ollama with grammar-constrained JSON output and validate with Pydantic.
+
+    Uses response_format with the full JSON schema so Ollama constrains generation
+    at the grammar level — more reliable than tool calls with local models.
+    """
+    client = AsyncOpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY)
+
+    response = await client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": build_user_prompt(request)},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "recipe_recommendations",
+                "schema": RecipeRecommendations.model_json_schema(),
+            },
+        },
+    )
+
+    content = response.choices[0].message.content
+    if not content:
+        raise RuntimeError("Model returned an empty response")
+
+    return RecipeRecommendations.model_validate_json(content)

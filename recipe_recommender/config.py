@@ -6,7 +6,6 @@ OLLAMA_API_KEY: str = "ollama"
 DEFAULT_MODEL: str = "llama3.1:8b"
 DEFAULT_RECIPE_COUNT: int = 3
 MAX_RECIPE_COUNT: int = 10
-OUTPUT_RETRIES: int = 3
 
 SYSTEM_PROMPT: str = (
     "You are a professional chef and recipe expert. "
