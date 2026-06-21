@@ -8,6 +8,7 @@ from recipe_recommender.config import (
     DEFAULT_MODEL,
     OLLAMA_API_KEY,
     OLLAMA_BASE_URL,
+    OUTPUT_RETRIES,
     SYSTEM_PROMPT,
 )
 from recipe_recommender.models import RecipeRecommendations, RecipeRequest
@@ -39,7 +40,12 @@ def build_agent(model_name: str = DEFAULT_MODEL) -> Agent[None, RecipeRecommenda
         model_name,
         provider=OpenAIProvider(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY),
     )
-    return Agent(model, output_type=RecipeRecommendations, system_prompt=SYSTEM_PROMPT)
+    return Agent(
+        model,
+        output_type=RecipeRecommendations,
+        system_prompt=SYSTEM_PROMPT,
+        retries=OUTPUT_RETRIES,
+    )
 
 
 async def recommend_recipes(
